@@ -2,12 +2,12 @@ version: "3"
 
 services:
   shepherd:
-    image: atsigncompany/shepherd:latest
+    image: <your local registry cache>/atsigncompany/shepherd:latest
     environment:
       TZ: 'US/PST'
-      SLEEP_TIME: '12h'
+      SLEEP_TIME: '1h'
       VERBOSE: 'true'
-      FILTER_SERVICES: 'label=com.docker.stack.image=atsigncompany/secondary:prod'
+      FILTER_SERVICES: 'label=com.docker.stack.image=<your local registry cache>/atsigncompany/secondary:prod'
       WITH_REGISTRY_AUTH: 'true'
       IMAGE_AUTOCLEAN_LIMIT: 5
     volumes:
