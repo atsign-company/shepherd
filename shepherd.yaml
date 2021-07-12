@@ -3,6 +3,8 @@ version: "3"
 services:
   shepherd:
     image: <your local registry cache>/atsigncompany/shepherd:latest
+    extra_hosts:
+      - "<<your local registry cache>:<Local Network IP Address>
     environment:
       TZ: 'US/PST'
       SLEEP_TIME: '1h'
