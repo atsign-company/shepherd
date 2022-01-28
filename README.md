@@ -1,6 +1,6 @@
 # Shepherd for The @ Company swarms
 
-## Intructions
+## Instructions
 
 Edit 
 
