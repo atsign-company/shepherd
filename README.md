@@ -1,3 +1,22 @@
+# Shepherd for The @ Company swarms
+
+## Intructions
+
+Edit 
+
+`shepherd.yaml`
+
+Run 
+
+`docker stack deploy --compose-file shepherd.yaml shepherd`
+
+Check the logs
+
+`docker service logs -f shepherd_shepherd`
+
+Sit back a relax and let shepherd update your secondaries...
+
+
 # Shepherd
 
 [![Build Status](https://ci.strahlungsfrei.de/api/badges/djmaze/shepherd/status.svg)](https://ci.strahlungsfrei.de/djmaze/shepherd)
