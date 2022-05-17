@@ -1,93 +1,63 @@
+---
 kind: pipeline
-name: amd64
-
-platform:
-  os: linux
-  arch: amd64
+name: test
 
 steps:
-  - name: build
-    image: plugins/docker
-    settings:
-      auto_tag: true
-      auto_tag_suffix: amd64
-      repo: mazzolino/shepherd
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
-    when:
-      event:
-        exclude:
-          - pull_request
+  - name: shellcheck
+    image: koalaman/shellcheck-alpine:v0.8.0@sha256:7d818fda19f5d8658fbb61b53f106cde88eda4b977b1db916ad9d3ccfa1c3ac6
+    commands:
+      - shellcheck shepherd
 
 ---
 kind: pipeline
-name: arm
-
-platform:
-  os: linux
-  arch: arm64
+name: release
 
 steps:
-  - name: build
-    image: plugins/docker:linux-arm
+  - name: build & push release
+    image: thegeeklab/drone-docker-buildx:20.11@sha256:327b6fb15dc841cf80c7c429f60d695efd7c7a476fe363afac25a58befd4c203
     settings:
       auto_tag: true
-      auto_tag_suffix: arm
       repo: mazzolino/shepherd
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
-    when:
-      event:
-        exclude:
-          - pull_request
-
----
-kind: pipeline
-name: arm64
-
-platform:
-  os: linux
-  arch: arm64
-
-steps:
-  - name: build
-    image: plugins/docker:linux-arm64
-    settings:
-      auto_tag: true
-      auto_tag_suffix: arm64
-      repo: mazzolino/shepherd
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
-    when:
-      event:
-        exclude:
-          - pull_request
----
-kind: pipeline
-name: manifest
-
-steps:
-  - name: manifest
-    image: plugins/manifest:1
-    settings:
-      spec: manifest.tmpl
-      auto_tag: true
-      username:
-        from_secret: docker_username
-      password:
-        from_secret: docker_password
       platforms:
         - linux/amd64
-        - linux/arm
         - linux/arm64
+        - linux/armhf
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
 
-depends_on:
-  - amd64
-  - arm
-  - arm64
+trigger:
+  event:
+    exclude:
+      - pull_request
+
+---
+kind: pipeline
+name: pr
+
+steps:
+  - name: build & push PR
+    image: thegeeklab/drone-docker-buildx:20.11@sha256:327b6fb15dc841cf80c7c429f60d695efd7c7a476fe363afac25a58befd4c203
+    settings:
+      repo: mazzolino/shepherd
+      tags:
+        - pr-${DRONE_PULL_REQUEST}
+      platforms:
+        - linux/amd64
+        - linux/arm64
+        - linux/armhf
+      username:
+        from_secret: docker_username
+      password:
+        from_secret: docker_password
+
+trigger:
+  event:
+    - pull_request
+
+---
+kind: signature
+hmac: 5d296dd4c63d3f6b8d3ffabf0ba4f2f51d3cfacc6d68dd31388d675132742a0d
+
+...
