@@ -69,6 +69,8 @@ You can enable notifications on service update with apprise, using the [apprise 
 
 You can enable old image autocleaning on service update by setting the `IMAGE_AUTOCLEAN_LIMIT` variable.
 
+You can go faster by setting the `DONT_WAIT` variable so that Docker services converge behind the scenes.
+
 You can enable one shot running with `RUN_ONCE_AND_EXIT` variable.
 
 If you care about log entries having the right timezone, you can set the `TZ` variable to the correct value (make sure to *not* include quotation marks in the variable value).

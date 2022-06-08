@@ -24,6 +24,7 @@ update_services() {
   local registry_user="$7"
   local registry_password="$8"
   local registry_host="$9"
+  local dont_wait="${10}"
   local detach_option=""
   local registry_auth=""
   local insecure_registry_flag=""
@@ -32,6 +33,7 @@ update_services() {
   local apprise_sidecar_url="${APPRISE_SIDECAR_URL:-}"
 
   [ "$supports_detach_option" = true ] && detach_option="--detach=false"
+  [ "$dont_wait" = true ] && detach_option="--detach=true"
   [ "$supports_registry_auth" = true ] && registry_auth="--with-registry-auth"
   [ "$supports_insecure_registry" = true ] && insecure_registry_flag="--insecure"
   [ "$supports_no_resolve_image" = true ] && no_resolve_image_flag="--no-resolve-image"
@@ -106,7 +108,7 @@ get_registry_password() {
 }
 
 main() {
-  local sleep_time supports_detach_option supports_registry_auth verbose image_autoclean_limit ignorelist
+  local sleep_time supports_detach_option supports_registry_auth verbose image_autoclean_limit ignorelist dont_wait
   local registry_user=""
   local registry_password=""
   local registry_host=""
@@ -149,13 +151,19 @@ main() {
     logger "Deployment without resolving image"
   fi
 
+  dont_wait=false
+  if [[ ${DONT_WAIT+x} ]]; then
+    dont_wait=true
+    logger "Not waiting for services to converge"
+  fi
+
   [[ "$ignorelist" != "" ]] && logger "Excluding services: $ignorelist"
 
   if [[ ${RUN_ONCE_AND_EXIT+x} ]]; then
-    update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host"
+    update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait"
   else
     while true; do
-      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host"
+      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait"
       logger "Sleeping $sleep_time before next update" "true"
       sleep "$sleep_time"
     done
