@@ -1,3 +1,23 @@
+# Shepherd for The @ Company swarms
+
+## Instructions
+
+Edit 
+
+`shepherd.yaml`
+
+Run 
+
+`docker stack deploy --compose-file shepherd.yaml shepherd`
+
+Check the logs
+
+`docker service logs -f shepherd_shepherd`
+
+Sit back a relax and let shepherd update your secondaries...
+
+##
+
 # Shepherd
 
 [![Build Status](https://ci.strahlungsfrei.de/api/badges/djmaze/shepherd/status.svg)](https://ci.strahlungsfrei.de/djmaze/shepherd)
@@ -13,6 +33,7 @@ A Docker swarm service for automatically updating your services whenever their b
                           mazzolino/shepherd
 
 ## Or with docker-compose
+
     version: "3"
     services:
       ...
@@ -30,11 +51,15 @@ A Docker swarm service for automatically updating your services whenever their b
 
 Shepherd will try to update your services every 5 minutes by default. You can adjust this value using the `SLEEP_TIME` variable.
 
-You can prevent services from being updated by appending them to the `BLACKLIST_SERVICES` variable. This should be a space-separated list of service names.
+You can prevent services from being updated by appending them to the `IGNORELIST_SERVICES` variable. This should be a space-separated list of service names.
 
 Alternatively you can specify a filter for the services you want updated using the `FILTER_SERVICES` variable. This can be anything accepted by the filtering flag in `docker service ls`.
 
+You can set Shepherd to roll back a service to the previous version if the update fails by setting the `ROLLBACK_ON_FAILURE` variable.
+
 You can enable private registry authentication by setting the `WITH_REGISTRY_AUTH` variable.
+
+If you need to authenticate to a registry (for example in order to get around the [Docker Hub rate limits](https://www.docker.com/increase-rate-limit)), you can set the variable `REGISTRY_USER` and store the password either in a [docker secret](https://docs.docker.com/engine/swarm/secrets/) named `shepherd_registry_password` or in the environment variable `REGISTRY_PASSWORD`. If you are not using Docker Hub but a private registry, set `REGISTRY_HOST` to the hostname of your registry.
 
 You can enable connection to insecure private registry by setting the `WITH_INSECURE_REGISTRY` variable.
 
@@ -44,18 +69,27 @@ You can enable notifications on service update with apprise, using the [apprise 
 
 You can enable old image autocleaning on service update by setting the `IMAGE_AUTOCLEAN_LIMIT` variable.
 
+You can go faster by setting the `DONT_WAIT` variable so that Docker services converge behind the scenes.
+
+You can enable one shot running with `RUN_ONCE_AND_EXIT` variable.
+
+If you care about log entries having the right timezone, you can set the `TZ` variable to the correct value (make sure to *not* include quotation marks in the variable value).
+
 Example:
 
     docker service create --name shepherd \
                         --constraint "node.role==manager" \
                         --env SLEEP_TIME="5m" \
-                        --env BLACKLIST_SERVICES="shepherd my-other-service" \
+                        --env IGNORELIST_SERVICES="shepherd my-other-service" \
                         --env WITH_REGISTRY_AUTH="true" \
                         --env WITH_INSECURE_REGISTRY="true" \
                         --env WITH_NO_RESOLVE_IMAGE="true" \
                         --env FILTER_SERVICES="label=com.mydomain.autodeploy" \
                         --env APPRISE_SIDECAR_URL="apprise-microservice:5000" \
                         --env IMAGE_AUTOCLEAN_LIMIT="5" \
+                        --env RUN_ONCE_AND_EXIT="true" \
+                        --env ROLLBACK_ON_FAILURE="true" \
+                        --env TZ=Europe/Berlin \
                         --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock,ro \
                         --mount type=bind,source=/root/.docker/config.json,target=/root/.docker/config.json,ro \
                         mazzolino/shepherd

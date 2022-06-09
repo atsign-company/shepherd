@@ -1,0 +1,20 @@
+version: "3"
+
+services:
+  shepherd:
+    image: <your local registry cache FQDN>/atsigncompany/shepherd:latest
+    environment:
+      TZ: 'UTC'
+      SLEEP_TIME: '1h'
+      DONT_WAIT: 'true'
+      VERBOSE: 'true'
+      FILTER_SERVICES: 'label=com.docker.stack.image=<your local registry cache FQDN>/atsigncompany/secondary:prod'
+      WITH_REGISTRY_AUTH: 'true'
+      IMAGE_AUTOCLEAN_LIMIT: 5
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock
+      - /root/.docker/config.json:/root/.docker/config.json
+    deploy:
+      placement:
+        constraints:
+          - node.role == manager
