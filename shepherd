@@ -25,6 +25,7 @@ update_services() {
   local registry_password="$8"
   local registry_host="$9"
   local dont_wait="${10}"
+  local sleep_time="${11}"
   local detach_option=""
   local registry_auth=""
   local insecure_registry_flag=""
@@ -74,6 +75,8 @@ update_services() {
         currentImage=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
         if [ "$previousImage" == "$currentImage" ]; then
           logger "No updates to service $name!" "true"
+          logger "Sleeping $sleep_time before next service" "true"
+          sleep "$sleep_time"
         else
           logger "Service $name was updated!"
           if [[ "$apprise_sidecar_url" != "" ]]; then
@@ -162,11 +165,11 @@ main() {
   [[ "$ignorelist" != "" ]] && logger "Excluding services: $ignorelist"
 
   if [[ ${RUN_ONCE_AND_EXIT+x} ]]; then
-    update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait"
+    update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$sleep_time"
   else
     while true; do
-      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait"
-      logger "Sleeping $sleep_time before next update" "true"
+      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$sleep_time"
+      logger "Sleeping $sleep_time before next run" "true"
       sleep "$sleep_time"
     done
   fi

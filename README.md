@@ -1,24 +1,30 @@
-# Shepherd for The @ Company swarms
+# Shepherd for the Atsign swarms
 
 ## Instructions
 
 Edit 
 
-`shepherd.yaml`
+```
+shepherd.yaml
+```
 
 Run 
 
-`docker stack deploy --compose-file shepherd.yaml shepherd`
+```
+docker stack deploy --compose-file shepherd.yaml shepherd
+```
 
 Check the logs
 
-`docker service logs -f shepherd_shepherd`
+```
+docker service logs -f shepherd_shepherd
+```
 
 Sit back a relax and let shepherd update your secondaries...
 
 ##
 
-# Shepherd
+# Shepherd (original README)
 
 [![Build Status](https://ci.strahlungsfrei.de/api/badges/djmaze/shepherd/status.svg)](https://ci.strahlungsfrei.de/djmaze/shepherd)
 [![Docker Stars](https://img.shields.io/docker/stars/mazzolino/shepherd.svg)](https://hub.docker.com/r/mazzolino/shepherd/) [![Docker Pulls](https://img.shields.io/docker/pulls/mazzolino/shepherd.svg)](https://hub.docker.com/r/mazzolino/shepherd/)
@@ -27,13 +33,16 @@ A Docker swarm service for automatically updating your services whenever their b
 
 ## Usage
 
+```bash
     docker service create --name shepherd \
                           --constraint "node.role==manager" \
                           --mount type=bind,source=/var/run/docker.sock,target=/var/run/docker.sock,ro \
                           mazzolino/shepherd
+```
 
 ## Or with docker-compose
 
+```yaml
     version: "3"
     services:
       ...
@@ -46,6 +55,7 @@ A Docker swarm service for automatically updating your services whenever their b
           placement:
             constraints:
             - node.role == manager
+```
 
 ### Configuration
 
