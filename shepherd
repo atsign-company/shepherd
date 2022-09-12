@@ -14,6 +14,72 @@ logger() {
   fi
 }
 
+update_service() {
+  local name="$1"
+  local ignorelist="$2"
+  local insecure_registry_flag="$3"
+  local detach_option="$4"
+  local registry_auth="$5"
+  local no_resolve_image_flag="$6"
+  local hostname="$7"
+  local apprise_sidecar_url="$8"
+  local image_autoclean_limit="$9"
+  local image_with_digest image previousImage currentImage img_name image_ids image_ids_count
+  if [[ " $ignorelist " != *" $name "* ]]; then
+    image_with_digest="$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')"
+    image=$(echo "$image_with_digest" | cut -d@ -f1)
+
+    if ! DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect $insecure_registry_flag "$image" > /dev/null; then
+      logger "Error updating service $name! Image $image does not exist or it is not available"
+      return 3
+    else
+      logger "Trying to update service $name with image $image" "true"
+
+      if ! docker service update "$name" $detach_option $registry_auth $no_resolve_image_flag --image="$image" > /dev/null; then
+        logger "Service $name update failed on $hostname!"
+        if [[ "${ROLLBACK_ON_FAILURE+x}" ]]; then
+          logger "Rolling $name back"
+          docker service update "$name" $detach_option $registry_auth $no_resolve_image_flag --rollback > /dev/null
+        fi
+        if [[ "$apprise_sidecar_url" != "" ]]; then
+          title="[Shepherd] Service $name update failed on $hostname"
+          body="$(date) Service $name failed to update to $(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')"
+          curl -X POST -H "Content-Type: application/json" --data "{\"title\": \"$title\", \"body\": \"$body\"}" "$apprise_sidecar_url"
+        fi
+        return 4    # continue with next service
+      fi
+
+      previousImage=$(docker service inspect "$name" -f '{{.PreviousSpec.TaskTemplate.ContainerSpec.Image}}')
+      currentImage=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
+      if [ "$previousImage" == "$currentImage" ]; then
+        logger "No updates to service $name!" "true"
+        return 1
+      else
+        logger "Service $name was updated!"
+        if [[ "$apprise_sidecar_url" != "" ]]; then
+          title="[Shepherd] Service $name updated on $hostname"
+          body="$(date) Service $name was updated from $previousImage to $currentImage"
+          curl -X POST -H "Content-Type: application/json" --data "{\"title\": \"$title\", \"body\": \"$body\"}" "$apprise_sidecar_url"
+        fi
+
+        if [[ "$image_autoclean_limit" != "" ]]; then
+          logger "Cleaning up old docker images, leaving last $image_autoclean_limit"
+          img_name=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}' | awk -F':' '{print $1}')
+          image_ids=$(docker images -aq --filter=reference="$img_name")
+          image_ids_count=$(echo "$image_ids" | wc -w)
+          if [[ $image_ids_count > $image_autoclean_limit ]]; then
+            docker container prune -f
+            read -ra images_to_remove < <(echo "$image_ids" | xargs -n 1 | tail -n $(("$image_ids_count" - "$image_autoclean_limit")))
+            docker rmi "${images_to_remove[@]}"
+          fi
+        fi
+      fi
+      return 0
+    fi
+    return 2
+  fi
+}
+
 update_services() {
   local ignorelist="$1"
   local supports_detach_option=$2
@@ -46,58 +112,22 @@ update_services() {
     echo "$registry_password" | docker login --username="$registry_user" --password-stdin "$registry_host"
   fi
 
-  for name in $(IFS=$'\n' docker service ls --quiet --filter "${FILTER_SERVICES}" --format '{{.Name}}'); do
-    local image_with_digest image
-    if [[ " $ignorelist " != *" $name "* ]]; then
-      image_with_digest="$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')"
-      image=$(echo "$image_with_digest" | cut -d@ -f1)
+  SERVICES=$(IFS=$'\n' docker service ls -q --format '{{.Name}}')
+  
+  # First do the services that aren't secondaries
 
-      if ! DOCKER_CLI_EXPERIMENTAL=enabled docker manifest inspect $insecure_registry_flag "$image" > /dev/null; then
-        logger "Error updating service $name! Image $image does not exist or it is not available"
-      else
-        logger "Trying to update service $name with image $image" "true"
+  for name in $(echo "$SERVICES" | grep -v secondary); do
+    update_service "$name" "$ignorelist" "$insecure_registry_flag" "$image" "$detach_option" "$registry_auth" "$no_resolve_image_flag" "$hostname" "$apprise_sidecar_url" "$image_autoclean_limit"
+  done
 
-        if ! docker service update "$name" $detach_option $registry_auth $no_resolve_image_flag --image="$image" > /dev/null; then
-          logger "Service $name update failed on $hostname!"
-          if [[ "${ROLLBACK_ON_FAILURE+x}" ]]; then
-            logger "Rolling $name back"
-            docker service update "$name" $detach_option $registry_auth $no_resolve_image_flag --rollback > /dev/null
-          fi
-          if [[ "$apprise_sidecar_url" != "" ]]; then
-            title="[Shepherd] Service $name update failed on $hostname"
-            body="$(date) Service $name failed to update to $(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')"
-            curl -X POST -H "Content-Type: application/json" --data "{\"title\": \"$title\", \"body\": \"$body\"}" "$apprise_sidecar_url"
-          fi
-          continue    # continue with next service
-        fi
+  # Then do the services that are secondaries
 
-        previousImage=$(docker service inspect "$name" -f '{{.PreviousSpec.TaskTemplate.ContainerSpec.Image}}')
-        currentImage=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
-        if [ "$previousImage" == "$currentImage" ]; then
-          logger "No updates to service $name!" "true"
-          logger "Sleeping $sleep_time before next service" "true"
-          sleep "$sleep_time"
-        else
-          logger "Service $name was updated!"
-          if [[ "$apprise_sidecar_url" != "" ]]; then
-            title="[Shepherd] Service $name updated on $hostname"
-            body="$(date) Service $name was updated from $previousImage to $currentImage"
-            curl -X POST -H "Content-Type: application/json" --data "{\"title\": \"$title\", \"body\": \"$body\"}" "$apprise_sidecar_url"
-          fi
-
-          if [[ "$image_autoclean_limit" != "" ]]; then
-            logger "Cleaning up old docker images, leaving last $image_autoclean_limit"
-            img_name=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}' | awk -F':' '{print $1}')
-            image_ids=$(docker images -aq --filter=reference="$img_name")
-            image_ids_count=$(echo "$image_ids" | wc -w)
-            if [[ $image_ids_count > $image_autoclean_limit ]]; then
-              docker container prune -f
-              read -ra images_to_remove < <(echo "$image_ids" | xargs -n 1 | tail -n $(("$image_ids_count" - "$image_autoclean_limit")))
-              docker rmi "${images_to_remove[@]}"
-            fi
-          fi
-        fi
-      fi
+  for name in $(echo "$SERVICES" | grep secondary | tail -1); do
+    update_service "$name" "$ignorelist" "$insecure_registry_flag" "$image" "$detach_option" "$registry_auth" "$no_resolve_image_flag" "$hostname" "$apprise_sidecar_url" "$image_autoclean_limit"
+    if [ $? -eq 0 ]; then
+      for name in $(echo "$SERVICES" | grep secondary ); do
+        update_service "$name" "$ignorelist" "$insecure_registry_flag" "$image" "$detach_option" "$registry_auth" "$no_resolve_image_flag" "$hostname" "$apprise_sidecar_url" "$image_autoclean_limit"
+      done
     fi
   done
 }
