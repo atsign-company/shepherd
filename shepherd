@@ -75,7 +75,7 @@ update_services() {
         currentImage=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
         if [ "$previousImage" == "$currentImage" ]; then
           logger "No updates to service $name!" "true"
-          if [ "${service_delay}" -eq "0" ]; then
+          if [ "${service_delay}" = "0" ]; then
             logger "On first run so no delay before next service" "true"
           else
             logger "Sleeping $service_delay before next service" "true"
