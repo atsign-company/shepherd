@@ -121,9 +121,10 @@ update_services() {
   done
 
   # Then do the services that are secondaries
-
+  # start with the last secondary in the list
   for name in $(echo "$SERVICES" | grep secondary | tail -1); do
     update_service "$name" "$ignorelist" "$insecure_registry_flag" "$image" "$detach_option" "$registry_auth" "$no_resolve_image_flag" "$hostname" "$apprise_sidecar_url" "$image_autoclean_limit"
+    # if the last secondary needs updating then update the rest
     if [ $? -eq 0 ]; then
       for name in $(echo "$SERVICES" | grep secondary ); do
         update_service "$name" "$ignorelist" "$insecure_registry_flag" "$image" "$detach_option" "$registry_auth" "$no_resolve_image_flag" "$hostname" "$apprise_sidecar_url" "$image_autoclean_limit"
