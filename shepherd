@@ -174,7 +174,7 @@ main() {
     update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$sleep_time"
   else
     while true; do
-      if [[ ${firstrun}]]; then
+      if [ ${firstrun} = true ]; then
         service_delay=0
         firstrun=false
       else
