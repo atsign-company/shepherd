@@ -25,7 +25,7 @@ update_services() {
   local registry_password="$8"
   local registry_host="$9"
   local dont_wait="${10}"
-  local sleep_time="${11}"
+  local service_delay="${11}"
   local detach_option=""
   local registry_auth=""
   local insecure_registry_flag=""
@@ -75,8 +75,12 @@ update_services() {
         currentImage=$(docker service inspect "$name" -f '{{.Spec.TaskTemplate.ContainerSpec.Image}}')
         if [ "$previousImage" == "$currentImage" ]; then
           logger "No updates to service $name!" "true"
-          logger "Sleeping $sleep_time before next service" "true"
-          sleep "$sleep_time"
+          if [ "${service_delay}" = "0" ]; then
+            logger "On first run so no delay before next service" "true"
+          else
+            logger "Sleeping $service_delay before next service" "true"
+            sleep "$service_delay"
+          fi
         else
           logger "Service $name was updated!"
           if [[ "$apprise_sidecar_url" != "" ]]; then
@@ -117,6 +121,8 @@ main() {
   local registry_user=""
   local registry_password=""
   local registry_host=""
+  local firstrun=true
+  local service_delay=""
   ignorelist="${IGNORELIST_SERVICES:-}"
   sleep_time="${SLEEP_TIME:-5m}"
   verbose="${VERBOSE:-true}"
@@ -168,7 +174,15 @@ main() {
     update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$sleep_time"
   else
     while true; do
-      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$sleep_time"
+      if [ ${firstrun} = true ]; then
+        logger "First run, so going at shear speed to ensure all updates in place" "true"
+        service_delay=0
+        firstrun=false
+      else
+        logger "Not the first run, so a more measured pace when nothing to update" "true"
+        service_delay=${sleep_time}
+      fi
+      update_services "$ignorelist" "$supports_detach_option" "$supports_registry_auth" "$supports_insecure_registry" "$supports_no_resolve_image" "$image_autoclean_limit" "$registry_user" "$registry_password" "$registry_host" "$dont_wait" "$service_delay"
       logger "Sleeping $sleep_time before next run" "true"
       sleep "$sleep_time"
     done
