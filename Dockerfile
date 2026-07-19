@@ -1,4 +1,5 @@
-FROM mazzolino/docker:20
+# Official Docker CLI image (Alpine-based); pinned so Dependabot can bump it
+FROM docker:29.6.2-cli
 
 ENV SLEEP_TIME='5m'
 ENV FILTER_SERVICES=''
