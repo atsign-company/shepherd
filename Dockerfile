@@ -1,5 +1,4 @@
-# Official Docker CLI image (Alpine-based); pinned so Dependabot can bump it
-FROM docker:29.6.2-cli
+FROM docker:29.6.2-cli@sha256:be132a9f282288de4afaf63379dff75711fda0147c6b72a9df44e51841402144
 
 ENV SLEEP_TIME='5m'
 ENV FILTER_SERVICES=''
