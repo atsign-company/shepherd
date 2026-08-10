@@ -5,7 +5,7 @@ ENV FILTER_SERVICES=''
 ENV TZ='US/Eastern'
 ENV VERBOSE='true'
 
-RUN apk add --update --no-cache bash curl tzdata
+RUN apk add --update --no-cache bash curl jq tzdata
 
 COPY shepherd /usr/local/bin/shepherd
 
