@@ -79,7 +79,7 @@ update_services() {
       # Force explicit OCI resolution of $image -> $target_image_with_digest
       target_image_with_digest=$(resolve_oci_image_with_digest "$image")
       if [ "$image_with_digest" != "$target_image_with_digest" ]; then
-          logger "New OCI image digest detected for $service_name"
+          logger "New OCI image digest detected for $name"
           logger "Current: $image_with_digest"
           logger "Target:  $target_image_with_digest"
       fi
